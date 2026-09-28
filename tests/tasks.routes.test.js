@@ -48,6 +48,8 @@ describe('Task API routes', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toHaveLength(2);
+      expect(response.body[0].title).toBe('Task 1');
+      expect(response.body[1].title).toBe('Task 2');
     });
   });
 
@@ -126,7 +128,37 @@ describe('Task API routes', () => {
         });
 
       expect(response.statusCode).toBe(400);
-      expect(response.body.error).toContain('status must be one of');
+      expect(response.body.error).toContain(
+        'status must be one of'
+      );
+    });
+
+    test('should reject an invalid priority', async () => {
+      const response = await request(app)
+        .post('/tasks')
+        .send({
+          title: 'Invalid priority',
+          priority: 'urgent',
+        });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.body.error).toContain(
+        'priority must be one of'
+      );
+    });
+
+    test('should reject an invalid due date', async () => {
+      const response = await request(app)
+        .post('/tasks')
+        .send({
+          title: 'Invalid date',
+          dueDate: 'not-a-date',
+        });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.body.error).toBe(
+        'dueDate must be a valid ISO date string'
+      );
     });
   });
 
@@ -158,6 +190,74 @@ describe('Task API routes', () => {
 
       expect(response.statusCode).toBe(404);
       expect(response.body.error).toBe('Task not found');
+    });
+
+    test('should reject an invalid title', async () => {
+      const task = taskService.create({
+        title: 'Valid title',
+      });
+
+      const response = await request(app)
+        .put(`/tasks/${task.id}`)
+        .send({
+          title: '',
+        });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.body.error).toBe(
+        'title must be a non-empty string'
+      );
+    });
+
+    test('should reject an invalid status', async () => {
+      const task = taskService.create({
+        title: 'Valid title',
+      });
+
+      const response = await request(app)
+        .put(`/tasks/${task.id}`)
+        .send({
+          status: 'invalid',
+        });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.body.error).toContain(
+        'status must be one of'
+      );
+    });
+
+    test('should reject an invalid priority', async () => {
+      const task = taskService.create({
+        title: 'Valid title',
+      });
+
+      const response = await request(app)
+        .put(`/tasks/${task.id}`)
+        .send({
+          priority: 'urgent',
+        });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.body.error).toContain(
+        'priority must be one of'
+      );
+    });
+
+    test('should reject an invalid due date', async () => {
+      const task = taskService.create({
+        title: 'Valid title',
+      });
+
+      const response = await request(app)
+        .put(`/tasks/${task.id}`)
+        .send({
+          dueDate: 'not-a-date',
+        });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.body.error).toBe(
+        'dueDate must be a valid ISO date string'
+      );
     });
   });
 
@@ -207,79 +307,115 @@ describe('Task API routes', () => {
       expect(response.body.error).toBe('Task not found');
     });
   });
-});
-describe('PATCH /tasks/:id/assign', () => {
-  test('should assign a task to a user', async () => {
-    const created = taskService.create({
-      title: 'Deploy API',
+
+  describe('PATCH /tasks/:id/assign', () => {
+    test('should assign a task to a user', async () => {
+      const created = taskService.create({
+        title: 'Deploy API',
+      });
+
+      const response = await request(app)
+        .patch(`/tasks/${created.id}/assign`)
+        .send({
+          assignee: 'Aman',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.assignee).toBe('Aman');
+      expect(response.body.id).toBe(created.id);
     });
 
-    const response = await request(app)
-      .patch(`/tasks/${created.id}/assign`)
-      .send({
-        assignee: 'Aman',
+    test('should trim whitespace from assignee name', async () => {
+      const created = taskService.create({
+        title: 'Deploy API',
       });
 
-    expect(response.status).toBe(200);
-    expect(response.body.assignee).toBe('Aman');
-    expect(response.body.id).toBe(created.id);
-  });
+      const response = await request(app)
+        .patch(`/tasks/${created.id}/assign`)
+        .send({
+          assignee: '  Aman  ',
+        });
 
-  test('should return 404 for an unknown task', async () => {
-    const response = await request(app)
-      .patch('/tasks/unknown-id/assign')
-      .send({
-        assignee: 'Aman',
-      });
-
-    expect(response.status).toBe(404);
-    expect(response.body.error).toBe('Task not found');
-  });
-
-  test('should return 400 when assignee is missing', async () => {
-    const created = taskService.create({
-      title: 'Deploy API',
+      expect(response.status).toBe(200);
+      expect(response.body.assignee).toBe('Aman');
     });
 
-    const response = await request(app)
-      .patch(`/tasks/${created.id}/assign`)
-      .send({});
+    test('should return 404 for an unknown task', async () => {
+      const response = await request(app)
+        .patch('/tasks/unknown-id/assign')
+        .send({
+          assignee: 'Aman',
+        });
 
-    expect(response.status).toBe(400);
-  });
-
-  test('should return 400 when assignee is empty', async () => {
-    const created = taskService.create({
-      title: 'Deploy API',
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('Task not found');
     });
 
-    const response = await request(app)
-      .patch(`/tasks/${created.id}/assign`)
-      .send({
-        assignee: '',
+    test('should return 400 when assignee is missing', async () => {
+      const created = taskService.create({
+        title: 'Deploy API',
       });
 
-    expect(response.status).toBe(400);
-  });
+      const response = await request(app)
+        .patch(`/tasks/${created.id}/assign`)
+        .send({});
 
-  test('should allow reassignment', async () => {
-    const created = taskService.create({
-      title: 'Deploy API',
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe(
+        'assignee must be a non-empty string'
+      );
     });
 
-    await request(app)
-      .patch(`/tasks/${created.id}/assign`)
-      .send({
-        assignee: 'Aman',
+    test('should return 400 when assignee is empty', async () => {
+      const created = taskService.create({
+        title: 'Deploy API',
       });
 
-    const response = await request(app)
-      .patch(`/tasks/${created.id}/assign`)
-      .send({
-        assignee: 'Om',
+      const response = await request(app)
+        .patch(`/tasks/${created.id}/assign`)
+        .send({
+          assignee: '',
+        });
+
+      expect(response.status).toBe(400);
+    });
+
+    test('should return 400 when assignee is not a string', async () => {
+      const created = taskService.create({
+        title: 'Deploy API',
       });
 
-    expect(response.status).toBe(200);
-    expect(response.body.assignee).toBe('Om');
+      const response = await request(app)
+        .patch(`/tasks/${created.id}/assign`)
+        .send({
+          assignee: 123,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe(
+        'assignee must be a non-empty string'
+      );
+    });
+
+    test('should allow reassignment', async () => {
+      const created = taskService.create({
+        title: 'Deploy API',
+      });
+
+      await request(app)
+        .patch(`/tasks/${created.id}/assign`)
+        .send({
+          assignee: 'Aman',
+        });
+
+      const response = await request(app)
+        .patch(`/tasks/${created.id}/assign`)
+        .send({
+          assignee: 'Om',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.assignee).toBe('Om');
+    });
   });
 });

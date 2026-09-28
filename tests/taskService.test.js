@@ -137,6 +137,26 @@ describe('taskService', () => {
       expect(stats.done).toBe(1);
       expect(stats.overdue).toBe(0);
     });
+
+    test('should count overdue incomplete tasks', () => {
+      taskService.create({
+        title: 'Overdue task',
+        status: 'todo',
+        dueDate: '2020-01-01',
+      });
+
+      taskService.create({
+        title: 'Completed old task',
+        status: 'done',
+        dueDate: '2020-01-01',
+      });
+
+      const stats = taskService.getStats();
+
+      expect(stats.todo).toBe(1);
+      expect(stats.done).toBe(1);
+      expect(stats.overdue).toBe(1);
+    });
   });
 
   describe('update', () => {
